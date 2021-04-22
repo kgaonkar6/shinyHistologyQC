@@ -1,0 +1,36 @@
+sample_id	Anatomic Location Review (CK)	CNS_Region
+7316-1763	Neg spine	Midline
+7316-1763	"Midline - thalamus, metastatic"	Midline
+7316-1763	"Midline - thalamus, metastatic"	Midline
+7316-1769	"Midline - thalamus, metastatic"	Midline
+7316-1769	"Midline - thalamus, metastatic"	Midline
+7316-194	Midline - thalamus	Midline
+7316-2146	Midline - ambient cistern	Midline
+7316-2146	Midline - ambient cistern	Midline
+7316-2151	Midline - thalamus	Midline
+7316-2151	"Midline - thalamus, midbrain"	Midline
+7316-2176	Hemispheric - temporal	Hemispheric
+7316-2176	Hemispheric - temporal	Hemispheric
+7316-2594	Neg spine	Midline
+7316-2594	Midline - thalamus	Midline
+7316-2751	"Hemispheric - R tentorium, occipitotemporal"	Hemispheric
+7316-3022	Midline - basal ganglia	Midline
+7316-343	Midline - thalamus	Midline
+7316-343	Midline - thalamus	Midline
+7316-371	"Midline - midbrain, pons"	Midline
+7316-3769	"Hemispheric - frontoparietal, temporal"	Hemispheric
+7316-3769	Hemispheric - temporal; Neg spine	Hemispheric
+7316-3769	"Hemispheric - frontoparietal, temporal"	Hemispheric
+7316-388	Midline - thalamus	Midline
+7316-409	Neg spine	Midline
+7316-409	Midline - thalamus	Midline
+7316-409	Midline - thalamus	Midline
+7316-466	Midline - thalamus	Midline
+7316-466	Neg spine	Midline
+7316-466	Midline - thalamus	Midline
+7316-895	"Multifocal - extra-axial, largest CPA"	Mixed
+7316-895	"Multifocal - extra-axial, largest CPA"	Mixed
+7316-2152	Neg spine	Midline
+7316-2152	Midline - B/l thalamus	Midline
+7316-2152	Metastatic disease to spine	Midline
+7316-2152	Midline - B/l thalamus	Midline

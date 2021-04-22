@@ -1,0 +1,35 @@
+pathology_free_text_diagnosis	broad_histology	short_histology
+atypical lymphoid infiltrate	Benign tumor	Lymphoid infiltrate
+dermoid cyst	Benign tumor	Cyst
+dermoid inclusion cyst	Benign tumor	Cyst
+epidermoid cyst	Benign tumor	Cyst
+fibroma	Benign tumor	Fibroma
+hamartoma	Benign tumor	Hamartoma
+inclusion cyst	Benign tumor	Cyst
+meningioangiomatosis	Benign tumor	Meningioangiomatosis
+ossifying fibroma	Benign tumor	Fibroma
+osteoblastoma	Benign tumor	Osteoblastoma
+perineuroma	Benign tumor	Perineuroma
+prolactinoma	Benign tumor	Prolactinoma
+rathke cleft cyst	Benign tumor	Cyst
+xanthogranuloma	Benign tumor	Xanthogranuloma
+choroid plexus cyst	Choroid plexus tumor	Choroid plexus tumor
+cortical tubers	Choroid plexus tumor	Choroid plexus tumor
+dipg	Diffuse astrocytic and oligodendroglial tumor	HGAT
+embryonal tumor with multilayer rosettes, ros (who grade iv)	Embryonal tumor	ETMR
+embryonal tumor, nos, congenital type	Embryonal tumor	Embryonal tumor
+ependymoblastoma	Embryonal tumor	Embryonal tumor
+medullooepithelioma	Embryonal tumor	Embryonal tumor
+non- langerhans histiocytosis (jxg- cns)	Histiocytic tumor	JXG
+rosai-dorfman disease	Histiocytic tumor	Rosai-dorfman
+malignant melanocytic neoplasm	Melanocytic tumor	Melanocytoma
+fibromyxoid lesion	Mesenchymal non-meningothelial tumor	Fibromixoid lesion
+myofibroblastic tumor	Mesenchymal non-meningothelial tumor	Myofibroblastic tumor
+glioneuronal tumor	Neuronal and mixed neuronal-glial tumor	Glial-neuronal tumor NOS
+neuroepithelial neoplasm	Neuronal and mixed neuronal-glial tumor	Glial-neuronal tumor NOS
+epilepsy, chronic rasmussen encephalitis	Non-tumor	Epilepsy
+reactive connective tissue	Non-tumor	Reactive tissue
+ganglioneuroma	Benign tumor	Ganglioneuroma
+arteriovenous malformation	Non-tumor	Arteriovenous malformation
+myxoid spindle cell tumor	Non-CNS tumor	Myxoid spindle cell tumor
+embryonal tumor with abundant neuropil and true rosettes (pnet)	Embryonal tumor	ETMR

@@ -1,0 +1,48 @@
+pathology_diagnosis	broad_histology	short_histology
+Adenoma	Benign tumor	Adenoma
+Choroid plexus papilloma	Benign tumor	Choroid plexus tumor
+Neurocytoma	Benign tumor	Neurocytoma
+Chordoma	Choroid plexus tumor	Chordoma
+Choroid plexus carcinoma	Choroid plexus tumor	Choroid plexus tumor
+Brainstem glioma- Diffuse intrinsic pontine glioma	Diffuse astrocytic and oligodendroglial tumor	HGAT
+Gliomatosis Cerebri	Diffuse astrocytic and oligodendroglial tumor	HGAT
+High-grade glioma/astrocytoma (WHO grade III/IV)	Diffuse astrocytic and oligodendroglial tumor	HGAT
+Oligodendroglioma	Diffuse astrocytic and oligodendroglial tumor	Oligodendroglioma
+Atypical Teratoid Rhabdoid Tumor (ATRT)	Embryonal tumor	ATRT
+Ganglioneuroblastoma	Embryonal tumor	Embryonal tumor
+Medulloblastoma	Embryonal tumor	Medulloblastoma
+Neuroblastoma	Embryonal tumor	Neuroblastoma
+Supratentorial or Spinal Cord PNET	Embryonal tumor	Embryonal tumor
+Ependymoma	Ependymal tumor	Ependymoma
+Germinoma	Germ cell tumor	Germinoma
+Germinoma;Teratoma	Germ cell tumor	Germ cell tumor
+Non-germinomatous germ cell tumor;Teratoma	Germ cell tumor	Germ cell tumor
+Teratoma	Germ cell tumor	Teratoma
+Langerhans Cell histiocytosis	Histiocytic tumor	Langerhans cell histiocytosis
+Ganglioglioma	Low-grade astrocytic tumor	Ganglioglioma
+Ganglioglioma;Low-grade glioma/astrocytoma (WHO grade I/II)	Low-grade astrocytic tumor	LGAT
+Low-grade glioma/astrocytoma (WHO grade I/II)	Low-grade astrocytic tumor	LGAT
+Low-grade glioma/astrocytoma (WHO grade I/II);Other	Low-grade astrocytic tumor	LGAT
+Primary CNS lymphoma	Lymphoma	CNS lymphoma
+Meningioma	Meningioma	Meningioma
+Cavernoma	Mesenchymal non-meningothelial tumor	Cavernoma
+Ewings Sarcoma	Mesenchymal non-meningothelial tumor	EWS
+Hemangioblastoma	Mesenchymal non-meningothelial tumor	Hemangioblastoma
+Rhabdomyosarcoma	Mesenchymal non-meningothelial tumor	CNS RMS
+Sarcoma	Mesenchymal non-meningothelial tumor	Sarcoma
+Metastatic secondary tumors	Metastatic tumors	Metastases
+Metastatic secondary tumors;Neuroblastoma	Metastatic tumors	Metastases
+Dysembryoplastic neuroepithelial tumor (DNET)	Neuronal and mixed neuronal-glial tumor	DNET
+Dysembryoplastic neuroepithelial tumor (DNET);Dysplasia/Gliosis;Ganglioglioma	Neuronal and mixed neuronal-glial tumor	DNET
+Dysembryoplastic neuroepithelial tumor (DNET);Ganglioglioma	Neuronal and mixed neuronal-glial tumor	DNET
+Dysplasia/Gliosis;Glial-neuronal tumor NOS	Neuronal and mixed neuronal-glial tumor	Glial-neuronal tumor NOS
+Glial-neuronal tumor NOS	Neuronal and mixed neuronal-glial tumor	Glial-neuronal tumor NOS
+Subependymal Giant Cell Astrocytoma (SEGA)	Other astrocytic tumor	SEGA
+Dysplasia/Gliosis	Pre-cancerous lesion	Dysplasia
+Malignant peripheral nerve sheath tumor (MPNST)	Tumor of cranial and paraspinal nerves	MPNST
+Neurofibroma/Plexiform	Tumor of cranial and paraspinal nerves	Neurofibroma
+Neurofibroma/Plexiform;Other	Tumor of cranial and paraspinal nerves	Neurofibroma
+Schwannoma	Tumor of cranial and paraspinal nerves	Schwannoma
+Pineoblastoma	Tumor of pineal region	Pineoblastoma
+Craniopharyngioma	Tumors of sellar region	Craniopharyngioma
+Other	NA	NA
