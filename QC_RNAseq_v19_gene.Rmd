@@ -1,0 +1,407 @@
+---
+title: "v19 gene QC RNAseq rsem files"
+output: html_notebook
+params:
+  histology:
+    label: "histology file for v19" 
+    value: release-v19-20210112/pbta-histologies-base.tsv
+    input: file
+  oldDataFolder:
+    label: "Old release folder soft linked to this directory"
+    value: release-v18-20201123
+    input: file
+  newDataFolder:
+    label: "Input new rsem files"
+    value: output
+    input: file
+  outputFolder:
+    label: "Output release folder"
+    value: release-v19-20210112
+    input: string 
+  polyaTPM:
+    label: "Filename of polya isoform TPM files"
+    value: pbta-gene-expression-rsem-tpm.polya.rds
+    input: string    
+  polyaCount:
+    label: "Filename of polya isoform Count files"
+    value: pbta-gene-counts-rsem-expected_count.polya.rds
+    input: string  
+  polyaFPKM: 
+    label: "Filename of polya isoform FPKM files"
+    value: pbta-gene-expression-rsem-fpkm.polya.rds
+    input: string  
+  strandedTPM:
+    label: "Filename of stranded isoform TPM files"
+    value: pbta-gene-expression-rsem-tpm.stranded.rds
+    input: string  
+  strandedCount:
+    label: "Filename of stranded isoform Count files"
+    value: pbta-gene-counts-rsem-expected_count.stranded.rds
+    input: string  
+  strandedFPKM:
+    label: "Filename of stranded isoform FPKM files"
+    value: pbta-gene-expression-rsem-fpkm.stranded.rds
+    input: string     
+---
+
+
+This markdown helps with QC for merging new RNAseq rsem.gene files.
+
+     Note v19 has the following changes:
+     
+     Stranded:
+       BS_JXF8A2A6 , the reason behind the removal is in  [issue](https://github.com/AlexsLemonade/OpenPBTA-analysis/issues/862)
+
+     
+##### Checks
+
+1. PRINTS: dimentions of new and old datasets
+2. CHECKS: gene overlap between new and old datasets
+3. CHECKS: Sample overlap with clinical files
+4. CHECKS: gene order with newly formed stranded data and old polya datasets
+5. If all above checks pass then final "Checks PASSED/Checks FAILED" is printed
+
+### Setup
+
+```{r Read input}
+if(!require("readr")){
+    install.packages("readr")
+}
+if(!require("tidyverse")){
+    install.packages("tidyverse")
+}
+if(!require("reshape2")){
+    install.packages("reshape2")
+}
+if(!require("qdapRegex")){
+    install.packages("qdapRegex")
+}
+
+root_dir <- rprojroot::find_root(rprojroot::has_dir(".git"))
+#load required packages
+suppressPackageStartupMessages(library("readr"))
+suppressPackageStartupMessages(library("tidyverse"))
+suppressPackageStartupMessages(library("reshape2"))
+suppressPackageStartupMessages(library("qdapRegex"))
+```
+
+
+
+```{r}
+#read old rsem tpm files
+oldStrandedTPM<-readRDS(file.path(params$oldDataFolder,params$strandedTPM))
+oldPolyaTPM<-readRDS(file.path( params$oldDataFolder,params$polyaTPM))
+
+# read new fpkm files
+oldStrandedFPKM<-readRDS(file.path(params$oldDataFolder,params$strandedFPKM))
+oldPolyaFPKM<-readRDS(file.path(params$oldDataFolder,params$polyaFPKM))
+
+
+#read old rsem expected count files
+oldStrandedCount<-readRDS(file.path(params$oldDataFolder,params$strandedCount))
+oldPolyaCount<-readRDS(file.path(params$oldDataFolder,params$polyaCount))
+
+# read new fpkm files
+newStrandedFPKM<- oldStrandedFPKM %>%
+  select(-BS_JXF8A2A6)
+
+# read new strsanded tpm files
+newStrandedTPM<- oldStrandedTPM %>%
+  select(-BS_JXF8A2A6)
+
+# read new stranded count files
+newStrandedCount<-oldStrandedCount %>%
+  select(-BS_JXF8A2A6)
+
+# histology file
+clinical<-read.delim(file.path( params$histology), stringsAsFactors = FALSE)
+clinical_rna<-clinical %>% dplyr::filter(experimental_strategy=="RNA-Seq") 
+
+# results folder
+outputFolder<-params$outputFolder
+```
+
+#### v18 Stranded data
+
+```{r Dimension of old stranded data }
+
+#old FPKM data
+dim(oldStrandedFPKM)
+#old TPM data
+dim(oldStrandedTPM)
+#old count data"
+dim(oldStrandedCount)
+
+```
+
+#### New stranded data
+
+```{r Dimension of new stranded data }
+
+#new TPM data
+dim(newStrandedFPKM)
+#new TPM data
+dim(newStrandedTPM)
+#new count data
+dim(newStrandedCount)
+
+```
+
+
+```{r Check common/missing genes for stranded biospecimens}
+
+# check with gene names in FPKM file of v17 and newly sequenced data
+fpkmGeneCheck1<-setdiff(oldStrandedFPKM$gene_id,newStrandedFPKM$gene_id)
+fpkmGeneCheck2<-setdiff(newStrandedFPKM$gene_id,oldStrandedFPKM$gene_id)
+
+# check with gene names in TPM file of v17 and newly sequenced data
+tpmGeneCheck1<-setdiff(oldStrandedTPM$gene_id,newStrandedTPM$gene_id)
+tpmGeneCheck2<-setdiff(newStrandedTPM$gene_id,oldStrandedTPM$gene_id)
+
+# check with gene names in count file of v17 and newly sequenced data
+countGeneCheck1<-setdiff(oldStrandedCount$gene_id,newStrandedCount$gene_id)
+countGeneCheck2<-setdiff(newStrandedCount$gene_id,oldStrandedCount$gene_id)
+
+if (all(is_empty(c(countGeneCheck1,tpmGeneCheck1,countGeneCheck2,tpmGeneCheck2)))){
+  print ("Common genes in both datasets ")
+  geneCountCheck<-TRUE
+} else{
+  stop ("Different genes found! Check genes in new and old datasets")
+  geneCountCheck<-FALSE
+}
+```
+
+
+```{r Check Sample count between new dataset for stranded biospecimens and clinical file }
+clinical_rna_stranded<-clinical_rna %>% filter(RNA_library=="stranded") 
+#total RNAseq samples in histology
+nrow(clinical_rna_stranded)
+
+# check sample names of FPKM file in newly sequenced data and new release histologies
+newSample<-colnames(newStrandedFPKM[,-1]) 
+fpkmSampleCheck1<-setdiff(newSample , clinical_rna_stranded$Kids_First_Biospecimen_ID)
+fpkmSampleCheck2<-setdiff( clinical_rna_stranded$Kids_First_Biospecimen_ID,newSample)
+
+
+# check sample names of TPM file in newly sequenced data and new release histologies
+newSample<-colnames(newStrandedTPM[,-1]) 
+tpmSampleCheck1<-setdiff( newSample , clinical_rna_stranded$Kids_First_Biospecimen_ID)
+tpmSampleCheck2<-setdiff( clinical_rna_stranded$Kids_First_Biospecimen_ID,newSample)
+
+# check sample names of count file in newly sequenced data and new release histologies
+newSample<-colnames(newStrandedCount[,-1]) 
+countSampleCheck1<-setdiff( newSample , clinical_rna_stranded$Kids_First_Biospecimen_ID)
+countSampleCheck2<-setdiff( clinical_rna_stranded$Kids_First_Biospecimen_ID,newSample)
+
+if (all(is_empty(c(countSampleCheck1,tpmSampleCheck1,fpkmSampleCheck1,countSampleCheck2,tpmSampleCheck2,fpkmSampleCheck2)))){
+  print ("New samples in rsem files completely overlap with RNAseq files in new histology file")
+  SampleCountCheck<-TRUE
+} else{
+  stop ("Sample count inaccurate! Check Sample in new and old datasets")
+  SampleCountCheck<-FALSE
+}
+```
+
+
+```{r Check colnames for gene files for stranded biospecimens should be "gene_id" and bs_ids }
+
+# check col names of FPKM file of v18 in newly merged file and expected output
+oldSample<-colnames(oldStrandedFPKM) 
+newSample<-colnames(newStrandedFPKM) 
+fpkmColCheck1<-setdiff(newSample , c("gene_id",clinical_rna_stranded$Kids_First_Biospecimen_ID))
+fpkmColCheck2<-setdiff( c("gene_id",clinical_rna_stranded$Kids_First_Biospecimen_ID),newSample)
+
+# check col names of count file of v18 in newly merged file and expected output
+oldSample<-colnames(oldStrandedCount) 
+newSample<-colnames(newStrandedCount) 
+countColCheck1<-setdiff(newSample , c("gene_id",clinical_rna_stranded$Kids_First_Biospecimen_ID))
+countColCheck2<-setdiff( c("gene_id",clinical_rna_stranded$Kids_First_Biospecimen_ID),newSample)
+
+# check col names of TPM file of v18 in newly merged file and expected output
+oldSample<-colnames(oldStrandedTPM) 
+newSample<-colnames(newStrandedTPM) 
+tpmColCheck1<-setdiff(newSample , c("gene_id",clinical_rna_stranded$Kids_First_Biospecimen_ID))
+tpmColCheck2<-setdiff( c("gene_id",clinical_rna_stranded$Kids_First_Biospecimen_ID),newSample)
+
+if (all(is_empty(c(countColCheck1,tpmColCheck1,fpkmColCheck1,countColCheck2,tpmColCheck2,fpkmColCheck2)))){
+  print ("Colnames correct in new file")
+  SampleCountCheck<-TRUE
+} else{
+  stop ("Colnames incorrect! Check colnames in new and old datasets")
+  SampleCountCheck<-FALSE
+}
+
+```
+
+
+
+
+#### v18 polya data
+
+```{r Dimension of old polya dataset}
+#old TPM data
+dim(oldPolyaTPM)
+#old count data
+dim(oldPolyaCount)
+# old FPKM data
+dim(oldPolyaFPKM)
+```
+
+#### New polya data
+Same as v18
+
+```{r Dimension of new polya dataset }
+
+# new TPM data
+newPolyaTPM <- oldPolyaTPM 
+
+# new count data
+newPolyaCount <- oldPolyaCount 
+
+# new FPKM data
+newPolyaFPKM <- oldPolyaFPKM
+
+# dim new TPM data
+dim(newPolyaTPM)
+# dim new count data
+dim(newPolyaCount)
+# dim new kallisto data
+dim(newPolyaFPKM)
+```
+
+```{r Check common/missing genes for polya biospecimen}
+
+# check with gene names in FPKM file of v17 and newly sequenced data
+fpkmGeneCheck1<-setdiff(oldPolyaFPKM$gene_id,newPolyaFPKM$gene_id)
+fpkmGeneCheck2<-setdiff(newPolyaFPKM$gene_id,oldPolyaFPKM$gene_id)
+
+# check with gene names in TPM file of v17 and newly sequenced data
+tpmGeneCheck1<-setdiff(oldPolyaTPM$gene_id,newPolyaTPM$gene_id)
+tpmGeneCheck2<-setdiff(newPolyaTPM$gene_id,oldPolyaTPM$gene_id)
+
+# check with gene names in count file of v17 and newly sequenced data
+countGeneCheck1<-setdiff(oldPolyaCount$gene_id,newPolyaCount$gene_id)
+countGeneCheck2<-setdiff(newPolyaCount$gene_id,oldPolyaCount$gene_id)
+
+if (all(is_empty(c(countGeneCheck1,tpmGeneCheck1,countGeneCheck2,tpmGeneCheck2)))){
+  print ("Common genes in both datasets ")
+  geneCountCheck<-TRUE
+} else{
+  stop ("Different genes found! Check genes in new and old datasets")
+  geneCountCheck<-FALSE
+}
+```
+
+
+```{r Check Sample count between new dataset for polya biospecimen and clinical file }
+clinical_rna_Polya<-clinical_rna %>% filter(RNA_library=="poly-A") 
+#total RNAseq samples in histology
+nrow(clinical_rna_Polya)
+
+# check sample names of FPKM file in newly sequenced data and new release histologies
+newSample<-colnames(newPolyaFPKM[,-1]) 
+fpkmSampleCheck1<-setdiff(newSample , clinical_rna_Polya$Kids_First_Biospecimen_ID)
+fpkmSampleCheck2<-setdiff( clinical_rna_Polya$Kids_First_Biospecimen_ID,newSample)
+
+
+# check sample names of TPM file in newly sequenced data and new release histologies
+newSample<-colnames(newPolyaTPM[,-1]) 
+tpmSampleCheck1<-setdiff( newSample , clinical_rna_Polya$Kids_First_Biospecimen_ID)
+tpmSampleCheck2<-setdiff( clinical_rna_Polya$Kids_First_Biospecimen_ID,newSample)
+
+# check sample names of count file in newly sequenced data and new release histologies
+newSample<-colnames(newPolyaCount[,-1]) 
+countSampleCheck1<-setdiff( newSample , clinical_rna_Polya$Kids_First_Biospecimen_ID)
+countSampleCheck2<-setdiff( clinical_rna_Polya$Kids_First_Biospecimen_ID,newSample)
+
+if (all(is_empty(c(countSampleCheck1,tpmSampleCheck1,fpkmSampleCheck1,countSampleCheck2,tpmSampleCheck2,fpkmSampleCheck2)))){
+  print ("New samples in rsem files completely overlap with RNAseq files in new histology file")
+  SampleCountCheck<-TRUE
+} else{
+  stop ("Sample count inaccurate! Check Sample in new and old datasets")
+  SampleCountCheck<-FALSE
+}
+```
+
+
+```{r Check colnames for polya biospecimen should have "gene_id" for gene files }
+
+# check col names of FPKM file of v18 in newly merged file and expected output
+oldSample<-colnames(oldPolyaFPKM) 
+newSample<-colnames(newPolyaFPKM) 
+fpkmColCheck1<-setdiff(newSample , c("gene_id",clinical_rna_Polya$Kids_First_Biospecimen_ID))
+fpkmColCheck2<-setdiff( c("gene_id",clinical_rna_Polya$Kids_First_Biospecimen_ID),newSample)
+
+# check col names of count file of v18 in newly merged file and expected output
+oldSample<-colnames(oldPolyaCount) 
+newSample<-colnames(newPolyaCount) 
+countColCheck1<-setdiff(newSample , c("gene_id",clinical_rna_Polya$Kids_First_Biospecimen_ID))
+countColCheck2<-setdiff( c("gene_id",clinical_rna_Polya$Kids_First_Biospecimen_ID),newSample)
+
+# check col names of TPM file of v18 in newly merged file and expected output
+oldSample<-colnames(oldPolyaTPM) 
+newSample<-colnames(newPolyaTPM) 
+tpmColCheck1<-setdiff(newSample , c("gene_id",clinical_rna_Polya$Kids_First_Biospecimen_ID))
+tpmColCheck2<-setdiff( c("gene_id",clinical_rna_Polya$Kids_First_Biospecimen_ID),newSample)
+
+if (all(is_empty(c(countColCheck1,tpmColCheck1,fpkmColCheck1,countColCheck2,tpmColCheck2,fpkmColCheck2)))){
+  print ("Combined samples in datasets completely overlap with RNAseq files in histology file")
+  SampleCountCheck<-TRUE
+} else{
+  stop ("Colnames incorrect! Check colnames in new and old datasets")
+  SampleCountCheck<-FALSE
+}
+
+```
+
+
+```{r Check order of genes in old polya and new stranded dataset }
+# only if number of gene_ids is true use == and all() to compare each element to the same position in the other vector
+
+# check gene order kallisto polya and new kallisto dataset
+if(length(newStrandedFPKM$gene_id)== length(oldPolyaFPKM$gene_id)){
+  geneOrderCheckFPKM<-all(newStrandedFPKM$gene_id==oldPolyaFPKM$gene_id)
+} else{
+  geneOrderCheckKallisto<-FALSE
+}
+
+# check gene order polya and new TPM dataset
+if(length(newStrandedTPM$gene_id)== length(oldPolyaTPM$gene_id)){
+  geneOrderCheckTPM<-all(newStrandedTPM$gene_id==oldPolyaTPM$gene_id)
+}else{
+  geneOrderCheckTPM<-FALSE
+}
+
+# check gene order polya and new count dataset
+if(length(newStrandedCount$gene_id)== length(oldPolyaCount$gene_id)){
+  geneOrderCheckCount<-all(newStrandedCount$gene_id==oldPolyaCount$gene_id)
+} else {
+  geneOrderCheckCount<-FALSE
+}
+
+if (all(c(geneOrderCheckCount,geneOrderCheckFPKM,geneOrderCheckTPM))){
+  print ("Same order of genes in both datasets ")
+  geneOrderCheck<-TRUE
+} else{
+  stop ("Different genes order found! Check genes in new and old datasets")
+  geneOrderCheck<-FALSE
+}
+```
+
+
+
+```{r  Check all Checks and save RDS}
+if(all(geneCountCheck,geneOrderCheck,SampleCountCheck)){
+  print("Checks PASSED; coping files to release folder")
+  saveRDS(newPolyaCount,file.path(outputFolder,params$polyaCount))
+  saveRDS(newPolyaTPM,file.path(outputFolder,params$polyaTPM))
+  saveRDS(newPolyaFPKM,file.path(outputFolder,params$polyaFPKM))
+  
+  saveRDS(newStrandedCount,file.path(outputFolder,params$strandedCount))
+  saveRDS(newStrandedTPM,file.path(outputFolder,params$strandedTPM))
+  saveRDS(newStrandedFPKM,file.path(outputFolder,params$strandedFPKM))
+  
+} else{
+  stop("Checks FAILED. Please REVIEW")
+}
+```

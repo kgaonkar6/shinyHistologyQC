@@ -1,0 +1,41 @@
+---
+title: "Temp fixes for v19"
+output: html_notebook
+---
+In this PR we will hard code a few changes that are not yet updated in data WH, but will be through CRU/BRP updates as long term colutions.
+
+
+BS_HZHEF797,BS_JFB984RG 20210126-data has `tumor_descriptor` == “Initial CNS Tumor;Recurrence” v18 had “Initial CNS Tumor”[discussed](https://www.notion.so/d3b/Issues-Resolutions-for-PNOC008-25-0becdaf6ee554f00a981059dc6ec466e#75fcef222d584f599bcb555d867012ce) will be updated through CRU but for this release we will hardcode it.
+
+
+```{r}
+library("tidyverse")
+ids <- c("BS_HZHEF797","BS_JFB984RG")
+column <- "tumor_descriptor"
+fix_value <- "Initial CNS Tumor"
+
+new_hist_file <- "20210126-data/ADAPT-base/pbta-histologies-base.tsv"
+
+```
+
+
+## Updates
+
+### BS_HZHEF797,BS_JFB984RG tumor_descriptor
+
+```{r}
+
+new_hist <- read_tsv(new_hist_file,
+                      # NAs are being read as logical so specifying as character here
+                           col_types = readr::cols(molecular_subtype = readr::col_character(),
+                                                   short_histology = readr::col_character(),
+                                                   integrated_diagnosis = readr::col_character(),
+                           broad_histology = readr::col_character(),
+                           Notes = readr::col_character())) %>%
+  mutate(tumor_descriptor = case_when(
+  Kids_First_Biospecimen_ID %in% ids ~ "Initial CNS Tumor",
+  TRUE ~ tumor_descriptor
+  )) %>% write_tsv("20210126-data/ADAPT-base/pbta-histologies-base.tsv")
+```
+
+

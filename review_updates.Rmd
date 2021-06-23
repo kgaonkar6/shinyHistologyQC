@@ -1,0 +1,45 @@
+---
+title: "Review updates"
+output: html_notebook
+---
+
+REVIEW UPDATES: Dicussed [here](https://github.com/d3b-center/d3b-pnoc003-HGG-DMG-omics/issues/196#issuecomment-773528346)
+
+### Review updates for CNS_region
+
+release-v19
+```{r}
+library("tidyverse")
+new_hist <- read_tsv("release-v19-20210126/pbta-histologies-base.tsv")
+CNS_updates <- read_tsv("input/CNS_region_review_HGG_CK.txt") %>%
+  select(sample_id, CNS_Region) %>%
+  rename(CNS_region = CNS_Region) %>%
+  unique()
+
+new_hist %>%
+  left_join(CNS_updates,by="sample_id",suffix=c("_previous","_latest")) %>%
+  mutate(CNS_region = case_when(!is.na(CNS_region_latest) ~ CNS_region_latest,
+                                TRUE ~ CNS_region_previous)
+         ) %>%
+  select(-CNS_region_previous,-CNS_region_latest) %>%
+  write_tsv("release-v19-20210126/pbta-histologies-base.tsv")
+```
+
+
+hgg-dmg
+```{r}
+library("tidyverse")
+new_hist <- read_tsv("20210126-data/pbta-histologies-base.tsv")
+CNS_updates <- read_tsv("input/CNS_region_review_HGG_CK.txt") %>%
+  select(sample_id, CNS_Region) %>%
+  rename(CNS_region = CNS_Region) %>%
+  unique()
+
+new_hist %>%
+  left_join(CNS_updates,by="sample_id",suffix=c("_previous","_latest")) %>%
+  mutate(CNS_region = case_when(!is.na(CNS_region_latest) ~ CNS_region_latest,
+                                TRUE ~ CNS_region_previous)
+         ) %>%
+  select(-CNS_region_previous,-CNS_region_latest) %>%
+  write_tsv("20210126-data/pbta-histologies-base.tsv")
+```

@@ -1,13 +1,12 @@
-# shinyHistologyQC
-App summarises changes in versions of metadata by providing summary statistics and change logs compared to a previous release of the metadata. In addition, users can also generate pdf reports to capture change in values per column to review ( and update downstream analysis and reduce any surprise code breaks!).
+## v19 release assembly and QC
 
-For OpenPBTA we also provide `CNS_region` by matching to primary_site and `broad_histology` and `short_histology` assignment to WHO pathology diagnois terms to the metadata.
+### Release notes
+In release we are using v18 base histology to create a base histology for v19 release. "Base histology" file has the basic clinical information manifest that is required by subtyping modules to add in OpenPBTA subtyping information.
 
-Typical use case:
-A new metadata file is generated
-  - 🗂 you want to compare to a previous file for an on-going project
-  - 🔖 identify and capture the changes 
-  - ✅ fix any discrepancies.
-  
-  
+The v18 base histologies was generated in this script: [script](https://github.com/d3b-center/D3b-codes/blob/master/OpenPBTA_v18_release_QC/QC_histology_v18.Rmd).
+We will be removing BS_JXF8A2A6 , the reason behind the removal is in  [issue](https://github.com/AlexsLemonade/OpenPBTA-analysis/issues/862)
 
+CNS_region is also updated for 135 samples which were incorectly changed in v18.
+
+20210126-data : hgg-dmg histology file release
+release-v19-20210126 : OpenPBTA histology file release

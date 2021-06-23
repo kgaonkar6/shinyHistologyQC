@@ -1,0 +1,372 @@
+---
+title: "Histologies File QC"
+data: 2021-01-27 
+output:
+  pdf_document:
+    latex_engine: xelatex
+author: "Jo Lynne Rokita, Krutika Gaonkar (D3B)"
+params:
+  latest_histology:
+    label: "latest pull of base histology"
+    value: 20210126-data/ADAPT-base/pbta_histologies.csv
+    input: file
+  prev_histology:
+    label: "previous release of base histology"
+    value: 20201215-data/pbta-histologies.tsv
+    input: file  
+  output:
+    label: "release folder name"
+    value: "20210126-data"
+    input: string
+  add_ids:
+    label: "add Kids_First_Biospecimen_IDs from base not in previous release"
+    value: ""
+    input: string
+  remove_ids:
+    label: "remove Kids_First_Biospecimen_IDs from previous release in ouput"
+    value: ""
+    input: string   
+toc: TRUE
+toc_float: TRUE
+editor_options: 
+  chunk_output_type: inline
+---
+
+In this notebook we are using v18 base histology to create a base histology for v19 release. "Base histology" file has the basic clinical information manifest that is required by subtyping modules to add in OpenPBTA subtyping information.
+
+The v18 base histologies was generated in this script: [script](https://github.com/d3b-center/D3b-codes/blob/master/OpenPBTA_v18_release_QC/QC_histology_v18.Rmd).
+
+CNS_region values were mis-assigned by a bug in v18 which will be fixed and QC-ed as well [#14](https://github.com/d3b-center/D3b-codes/issues/14) and original issue on OpenPBTA is in [838](https://github.com/AlexsLemonade/OpenPBTA-analysis/issues/838)
+
+
+```{r global_options, include=F}
+knitr::opts_chunk$set(error = F, echo = T, warning = T, message = T)
+
+```
+
+
+# Load packages
+```{r}
+suppressMessages(library(emo))
+suppressMessages(library(tidyverse))
+
+```
+
+# Directories and Files
+## Directories
+```{r}
+# Input directory
+input_dir <- file.path("input")
+# soft linked previous release histology
+prev_hist_file <- params$prev_histology
+
+# adapt histology
+latest_hist_file <- params$latest_histology
+
+##--- KEEP LINK to G-DRIVE --- ##
+
+# pathology diagnosis is needed to match tumor samples 
+# to broad/short histology
+#path_dx <- read_sheet('https://docs.google.com/spreadsheets/d/1fDXt_YODcSAWDvyI5ISBVhUCu4b5-TFCVWMOwiPeMwk/edit#gid=0',range="pathology_diagnosis_for_subtyping") %>%
+#  dplyr::select(pathology_diagnosis,broad_histology, short_histology) %>%
+#  write_tsv(file.path(input_dir,"pathology_diagnosis_for_subtyping.tsv"))
+
+# pathology free text diagnosis is needed to match to 
+# samples marked as "Other" in pathology_diagnosis
+#path_free_text <- read_sheet('https://docs.google.com/spreadsheets/d/1fDXt_YODcSAWDvyI5ISBVhUCu4b5-TFCVWMOwiPeMwk/edit#gid=0',range="pathology_free_text_diagnosis_for_subtyping") %>%
+#  dplyr::select(pathology_free_text_diagnosis,broad_histology, short_histology)%>%
+#  write_tsv(file.path(input_dir,"pathology_free_text_diagnosis_for_subtyping.tsv"))
+
+## ----------- ##
+
+
+```
+
+
+### Read in old base histology
+
+```{r}
+prev_hist <- read_tsv(prev_hist_file,
+                      # NAs are being read as logical so specifying as character here
+                           col_types = readr::cols(molecular_subtype = readr::col_character(),
+                                                   short_histology = readr::col_character(),
+                                                   integrated_diagnosis = readr::col_character(),
+                           broad_histology = readr::col_character(),
+                           Notes = readr::col_character()))
+
+path_dx <- read_tsv(file.path(input_dir,"pathology_diagnosis_for_subtyping.tsv")) %>%
+  dplyr::select(pathology_diagnosis, broad_histology, short_histology)
+path_free_text <- read_tsv(file.path(input_dir,"pathology_free_text_diagnosis_for_subtyping.tsv")) %>%
+  dplyr::select(pathology_free_text_diagnosis, broad_histology, short_histology)
+
+```
+
+### Subset new file for only those sampleIDs required
+v18 but we will remove BS_JXF8A2A6 for v19 [#862](https://github.com/AlexsLemonade/OpenPBTA-analysis/issues/862)
+```{r}
+latest_hist <- read_tsv(latest_hist_file,
+                      # NAs are being read as logical so specifying as character here
+                           col_types = readr::cols(molecular_subtype = readr::col_character(),
+                                                   short_histology = readr::col_character(),
+                                                   integrated_diagnosis = readr::col_character(),
+                           broad_histology = readr::col_character(),
+                           Notes = readr::col_character()))
+
+# get ids to subset 
+id_to_subset <- prev_hist %>%
+  pull(Kids_First_Biospecimen_ID)
+```
+
+## Add ids to previous release?
+
+```{r}
+if (params$add_ids != ""){
+  add_ids <- unlist(str_split(params$add_ids, ","))
+  # add new ids to previous releases
+  id_to_subset <- c( id_to_subset, add_ids)
+  print(paste(toString(add_ids)," added"))
+}
+
+```
+
+
+### subset to previous ids ( and new ids if provided)
+```{r}
+# subset final histology
+latest_hist <- latest_hist %>%
+  filter(Kids_First_Biospecimen_ID  %in% id_to_subset)
+
+
+```
+
+## Check 1: Assess dimensions whether new column names match the old 
+
+### Check 1a: assess ids overlap in new and old `r emo::ji("x")`
+```{r}
+source("code/util/check_rows_cols.R")
+check_rows(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "Kids_First_Biospecimen_ID")
+```
+
+
+### Check 1b: assess columns overlap in new and old `r emo::ji("white_check_mark")`
+```{r}
+check_cols(new_hist = latest_hist,old_hist = prev_hist)
+
+```
+
+## Check 2: Assess levels of histology columns `r emo::ji("x")`
+
+### Check 2a: path_dx and path_free_text_dx is used to match later so should have the same values in new histology
+
+```{r}
+
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "pathology_diagnosis",output_dir = params$output)
+
+```
+```{r}
+
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "pathology_free_text_diagnosis",output_dir = params$output)
+```
+
+### Check 2b: Normals, these should not have path_dx, int_dx,molecular_subtype, broad/short_hist `r emo::ji("x")`
+```{r}
+latest_hist_normals <- latest_hist %>% 
+  filter(sample_type=="Normal")
+prev_hist_normals <- prev_hist %>%
+  filter(sample_type=="Normal")
+
+key_column_name = c("pathology_free_text_diagnosis","pathology_diagnosis","primary_site")
+
+distinct(prev_hist_normals[,key_column_name])
+distinct(latest_hist_normals[,key_column_name])
+
+```
+
+## Check3 tables per column changes
+
+### Check 3a Experimental strategy `r emo::ji("x")`
+
+```{r}
+
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "experimental_strategy",output_dir = params$output)
+
+```
+
+### Check 3b Sample Type  `r emo::ji("x")`
+```{r}
+
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "sample_type",output_dir = params$output)
+
+
+```
+
+
+### Check 3c Tumor Descriptor `r emo::ji("x")`
+
+```{r}
+
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "tumor_descriptor",output_dir = params$output)
+
+```
+
+### Check 3d Composition  `r emo::ji("x")`
+```{r}
+# update composition with to match new terms to previous composition terms
+
+
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "composition",params$output)
+
+```
+
+### Check 3f RNA library `r emo::ji("x")`
+```{r}
+
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "RNA_library",output_dir = params$output)
+
+```
+
+### Check 3g: Cohort `r emo::ji("white_check_mark")`
+```{r}
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "cohort",output_dir = params$output)
+```
+
+### Check 3h: Sample and aliquot IDs - any changes? `r emo::ji("x")`
+```{r}
+
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "sample_id",output_dir = params$output)
+
+
+```
+
+```{r}
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "aliquot_id", output_dir = params$output)
+
+```
+
+### Check 3i: Sequencing Center `r emo::ji("x")`
+```{r}
+
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "seq_center",output_dir = params$output)
+
+```
+
+### Check 3f: primary_site `r emo::ji("x")`
+```{r}
+
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "primary_site",output_dir = params$output)
+
+```
+
+## Update CNS_region 
+
+json file was generated from the CNS_region updates ticket [838](https://github.com/AlexsLemonade/OpenPBTA-analysis/issues/838). 
+
+#### Match CNS_region matching primary_site and update
+
+```{r}
+source("code/util/primary_site_matched_CNS_region.R")
+latest_hist <- get_CNS_region(histology=latest_hist,
+                   CNS_match_json=file.path(input_dir,"CNS_primary_site_match.json")) 
+
+```
+
+
+Which samples had different CNS_region in v18?
+```{r}
+
+diff_cns <-latest_hist %>%
+  left_join(prev_hist[,c("Kids_First_Biospecimen_ID","CNS_region")],by=c("Kids_First_Biospecimen_ID"), suffix = c(".v19",".v18")) %>%
+    dplyr::select(Kids_First_Biospecimen_ID,CNS_region.v18,CNS_region.v19,primary_site) %>%
+  dplyr::filter(CNS_region.v18 != CNS_region.v19)
+
+
+diff_cns 
+```
+
+```{r}
+diff_cns$CNS_region.v19 %>% table()
+```
+
+135 samples were incorrectly assigned CNS_region in v18. 129 on these should be 'Mixed' and 6 'Other', fixed with an updated `cns_region_check()` function in this notebook.
+
+## Update broad_histology and short_histology
+Match by pathology_diagnosis and pathology_free_text_diagnosis (Other)
+ 
+#### By path_free_text for "Other" diagnosed 
+
+Only samples with 'Other' in pathology_diagnosis will be need to be matched by path_free_text
+
+```{r}
+latest_hist<- dplyr::select(latest_hist,c(-broad_histology,-short_histology))
+latest_hist_other <- latest_hist  %>%
+  dplyr::filter(pathology_diagnosis == "Other") %>%
+  left_join(path_free_text,by="pathology_free_text_diagnosis") 
+```
+
+#### By path_dx for all tumors other than "Other"
+Remove samples with 'Other' in pathology_diagnosis that was already matched above
+```{r}
+latest_hist <- latest_hist  %>%
+  dplyr::filter(pathology_diagnosis != "Other"|
+                  # add Normals
+                  sample_type=="Normal") %>%
+  left_join(path_dx,by="pathology_diagnosis") %>%
+  bind_rows(latest_hist_other) 
+```
+
+
+### Check broad_histology
+```{r}
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "broad_histology",output_dir = params$output)
+
+```
+
+
+
+### Check short_histology
+```{r}
+check_values(new_hist = latest_hist,old_hist = prev_hist,
+          column_name = "short_histology",output_dir = params$output)
+
+```
+
+## Remove ids from previous release?
+```{r}
+
+if (params$remove_ids != ""){
+  remove_ids <- unlist(str_split(params$remove_ids, ","))
+  # remove ids from previous releases
+  latest_hist <- latest_hist %>%
+    filter(!Kids_First_Biospecimen_ID %in% remove_ids)
+  print(paste(toString(remove_ids)," removed"))
+}
+
+
+```
+
+
+# Write new file
+```{r}
+write.table(latest_hist, file.path(params$output,"pbta-histologies-base.tsv")
+            , sep = "\t", quote = F, col.names = T, row.names = F)
+```
+
+
+```{r}
+sessionInfo()
+```
+

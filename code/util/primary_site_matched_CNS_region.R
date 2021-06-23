@@ -26,49 +26,40 @@ get_CNS_region<-function(histology, CNS_match_json){
   # add CNS_Region if there is a direct match of terms from 
   # primary_site to CNS_region
   histology <- histology %>%
-    mutate(
-      "CNS_region" = case_when(
-        # if primary_site has ";" in CBTN samples then the value in CNS_region should be default "Mixed"
-        grepl(";",primary_site) & cohort!="PNOC003" ~ "Mixed"
+    mutate("CNS_region"= case_when(grepl(";",histology$primary_site) ~ "Mixed",
+                                   grepl(paste(input_cns_matches$Hemispheric, collapse = "|"),histology$primary_site) ==TRUE ~ "Hemispheric",
+                                   grepl(paste(input_cns_matches$Midline, collapse = "|"),histology$primary_site) ==TRUE ~ "Midline",
+                                   grepl(paste(input_cns_matches$Spine, collapse = "|"),histology$primary_site) ==TRUE ~ "Spine",
+                                   grepl(paste(input_cns_matches$Ventricles, collapse = "|"),histology$primary_site) ==TRUE ~ "Ventricles",
+                                   grepl(paste(input_cns_matches$`Posterior fossa`, collapse = "|"),histology$primary_site) ==TRUE ~ "Posterior fossa",
+                                   grepl(paste(input_cns_matches$`Optic pathway`, collapse = "|"),histology$primary_site) ==TRUE ~ "Optic pathway",
+                                   grepl(paste(input_cns_matches$Suprasellar, collapse = "|"),histology$primary_site) ==TRUE ~ "Suprasellar",
+                                   grepl(paste(input_cns_matches$Other, collapse = "|"),histology$primary_site) ==TRUE ~ "Other"
     ))
   
   
   # if mixed check if all values separated by ";" fit in 1 CNS_region
-  cns_region_check <- function(primary_site,input_cns_matches, type, cohort=NA){
-    if (cohort=="CBTN" & type=="Mixed"){
-    primary_site_split <- unlist(lapply(str_to_lower(primary_site), function(x) strsplit(x,";")))
-    } else{
-      primary_site_split <- str_to_lower(primary_site)
-    }
+  cns_region_check <- function(primary_site,input_cns_matches){
+    primary_site_split <- unlist(lapply(primary_site, function(x) strsplit(x,";")))
     # Only checking the following because they have multiple primary_site matches
-    if (all(primary_site_split %in% str_to_lower(input_cns_matches[["Hemispheric"]]))){
+    if (all(primary_site_split %in% input_cns_matches[["Hemispheric"]])){
       return("Hemispheric")
-    }else if (all(primary_site_split %in% str_to_lower(input_cns_matches[["Midline"]]))){
+    }else if (all(primary_site_split %in% input_cns_matches[["Midline"]])){
       return("Midline")
-    }else if (all(primary_site_split %in% str_to_lower(input_cns_matches[["Spine"]]))){
+    }else if (all(primary_site_split %in% input_cns_matches[["Spine"]])){
       return("Spine")
-    }else if (all(primary_site_split %in% str_to_lower(input_cns_matches[["Ventricles"]]))){
+    }else if (all(primary_site_split %in% input_cns_matches[["Ventricles"]])){
       return("Ventricles")
-    }else if (all(primary_site_split %in% str_to_lower(input_cns_matches[["Posterior fossa"]]))){
+    }else if (all(primary_site_split %in% input_cns_matches[["Posterior fossa"]])){
       return("Posterior fossa")
-    }else if (all(primary_site_split %in% str_to_lower(input_cns_matches[["Optic pathway"]]))){
+    }else if (all(primary_site_split %in% input_cns_matches[["Optic pathway"]])){
       return("Optic pathway")
-    }else if (all(primary_site_split %in% str_to_lower(input_cns_matches[["Suprasellar"]]))){
+    }else if (all(primary_site_split %in% input_cns_matches[["Suprasellar"]])){
       return("Suprasellar")
-    }else if (all(primary_site_split %in% str_to_lower(input_cns_matches[["Other"]]))){
+    }else if (all(primary_site_split %in% input_cns_matches[["Other"]])){
       return("Other")
-    }
-    # added these specific terms as Mixed for PNOC003 samples since there are other ";"
-    # terms that are not Mixed but Midline as per [review](https://github.com/AlexsLemonade/OpenPBTA-analysis/issues/838#issuecomment-780035996) : 
-    # R. Anterior Pons; Adjacent #7" and R. Posterior Pons; Adjacent #6" 
-    else if (all(primary_site_split %in% str_to_lower(input_cns_matches[["Mixed"]]))){
-      return("Mixed")   
     }else{
-      if (type == "Mixed"){
-        return("Mixed")
-      } else{
-        return(NA_character_)
-      }
+      return("Mixed")
     }
     
   }
@@ -82,24 +73,9 @@ get_CNS_region<-function(histology, CNS_match_json){
       histology[which(histology$CNS_region=="Mixed"),"primary_site"] %>% pull(primary_site),
       function(x) 
         # cns_region_check with Mixed primary_site and input CNS_region matches
-        cns_region_check(x,input_cns_matches,type = "Mixed",cohort="CBTN")
+        cns_region_check(x,input_cns_matches)
     )
   )
-  
-  
-  # If CNS_region !="Mixed" check if string in primary_site corresponds to a CNS_region value
-  histology[which(is.na(histology$CNS_region)),"CNS_region"] <-unlist(
-    lapply(
-      # only check for single site primay_sites
-      histology[which(is.na(histology$CNS_region)),"primary_site"] %>% pull(primary_site),
-      function(x) 
-        # cns_region_check single site string terms in primary_site
-        cns_region_check(x,input_cns_matches,type = "Single site")
-    )
-  )
-  
-  
-  
   
   return(histology)
 }

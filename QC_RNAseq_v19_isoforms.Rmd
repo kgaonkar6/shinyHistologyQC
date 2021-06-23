@@ -1,0 +1,442 @@
+---
+title: "v19 isoform QC RNAseq"
+output: html_notebook
+params:
+  histology:
+    label: "histology file for v19" 
+    value: release-v19-20210112/pbta-histologies-base.tsv
+    input: file
+  oldDataFolder:
+    label: "Old release folder soft linked to this directory"
+    value: release-v18-20201123
+    input: file
+  newDataFolder:
+    label: "Input new rsem files"
+    value: output
+    input: file
+  outputFolder:
+    label: "Output release folder"
+    value: release-v19-20210112
+    input: string  
+  polyaTPM:
+    label: "Filename of polya isoform TPM files"
+    value: pbta-isoform-expression-rsem-tpm.polya.rds
+    input: string    
+  polyaCount:
+    label: "Filename of polya isoform Count files"
+    value: pbta-isoform-counts-rsem-expected_count.polya.rds
+    input: string  
+  polyaKallisto: 
+    label: "Filename of polya isoform Kallisto files"
+    value: pbta-gene-expression-kallisto.polya.rds
+    input: string  
+  strandedTPM:
+    label: "Filename of stranded isoform TPM files"
+    value: pbta-isoform-expression-rsem-tpm.stranded.rds
+    input: string  
+  strandedCount:
+    label: "Filename of stranded isoform Count files"
+    value: pbta-isoform-counts-rsem-expected_count.stranded.rds
+    input: string  
+  strandedKallisto:
+    label: "Filename of stranded isoform Kallisto files"
+    value: pbta-gene-expression-kallisto.stranded.rds
+    input: string  
+   
+---
+
+This markdown helps with QC for merging new RNAseq rsem.gene files.
+
+     Note v19 has the following changes:
+     
+     Stranded:
+       BS_JXF8A2A6 , the reason behind the removal is in  [issue](https://github.com/AlexsLemonade/OpenPBTA-analysis/issues/862)
+
+     
+##### Checks
+
+1. PRINTS: dimentions of new and old datasets
+2. CHECKS: gene overlap between new and old datasets
+3. CHECKS: Sample overlap with clinical files
+4. CHECKS: gene order with newly formed stranded data and old polya datasets
+5. If all above checks pass then final "Checks PASSED/Checks FAILED" is printed
+
+
+### Setup
+
+```{r Read input}
+if(!require("readr")){
+    install.packages("readr")
+}
+if(!require("tidyverse")){
+    install.packages("tidyverse")
+}
+if(!require("reshape2")){
+    install.packages("reshape2")
+}
+if(!require("qdapRegex")){
+    install.packages("qdapRegex")
+}
+
+root_dir <- rprojroot::find_root(rprojroot::has_dir(".git"))
+#load required packages
+suppressPackageStartupMessages(library("readr"))
+suppressPackageStartupMessages(library("tidyverse"))
+suppressPackageStartupMessages(library("reshape2"))
+suppressPackageStartupMessages(library("qdapRegex"))
+```
+
+
+```{r}    
+#read old rsem tpm files
+oldStrandedTPM<-readRDS(file.path(params$oldDataFolder,params$strandedTPM))
+oldPolyaTPM<-readRDS(file.path(params$oldDataFolder,params$polyaTPM))
+
+#read old rsem expected count files
+oldStrandedCount<-readRDS(file.path(params$oldDataFolder,params$strandedCount))
+oldPolyaCount<-readRDS(file.path(params$oldDataFolder,params$polyaCount))
+
+# old kallisto files
+oldKallistoStranded<-readRDS(file.path(params$oldDataFolder,params$strandedKallisto))
+oldKallistoPolya<-readRDS(file.path(params$oldDataFolder,params$polyaKallisto))
+
+# read new tpm files
+newStrandedTPM <- oldStrandedTPM %>%
+  select(-BS_JXF8A2A6)
+
+# read new count files
+newStrandedCount <- oldStrandedCount %>%
+  select(-BS_JXF8A2A6)
+
+# read kallisto files
+newKallistoStranded <- oldKallistoStranded %>%
+  select(-BS_JXF8A2A6)
+
+# histology file
+clinical<-read.delim(file.path(params$histology), stringsAsFactors = FALSE)
+clinical_rna<-clinical %>% dplyr::filter(experimental_strategy=="RNA-Seq") 
+
+# results folder
+outputFolder<-params$outputFolder
+```
+
+#### v18 Stranded data
+
+```{r Dimension of old stranded data }
+
+#old TPM data
+dim(oldStrandedTPM)
+#old count data"
+dim(oldStrandedCount)
+#old Kallisto stranded
+dim(oldKallistoStranded)
+
+```
+
+#### New stranded data
+
+```{r Dimension of new stranded data }
+
+#new TPM data
+dim(newStrandedTPM)
+#new count data
+dim(newStrandedCount)
+#new kallisto data
+dim(newKallistoStranded)
+```
+
+
+```{r Check common/missing genes for stranded biospecimens }
+
+# check with gene names in TPM file of v11 and newly sequenced data
+tpmGeneCheck1<-setdiff(oldStrandedTPM$gene_id,newStrandedTPM$gene_id)
+tpmGeneCheck2<-setdiff(newStrandedTPM$gene_id,oldStrandedTPM$gene_id)
+
+# check with gene names in count file of v11 and newly sequenced data
+countGeneCheck1<-setdiff(oldStrandedCount$gene_id,newStrandedCount$gene_id)
+countGeneCheck2<-setdiff(newStrandedCount$gene_id,oldStrandedCount$gene_id)
+
+# check with gene names in Kallisto file of v11 and newly sequenced data
+kallistoGeneCheck1<-setdiff(oldKallistoStranded$gene_id,newKallistoStranded$gene_id)
+kallistoGeneCheck2<-setdiff(newKallistoStranded$gene_id,oldKallistoStranded$gene_id)
+
+if (all(is_empty(c(countGeneCheck1,tpmGeneCheck1,kallistoGeneCheck1,countGeneCheck2,tpmGeneCheck2,kallistoGeneCheck2)))){
+  print ("Common genes in both datasets ")
+  geneCountCheck<-TRUE
+} else{
+  stop ("Different genes found! Check genes in new and old datasets")
+  geneCountCheck<-FALSE
+}
+```
+
+
+```{r Check Sample count between old+new dataset  for stranded biospecimens and clinical file }
+clinical_rna_stranded<-clinical_rna %>% filter(RNA_library=="stranded") 
+#total RNAseq samples in histology
+nrow(clinical_rna_stranded)
+
+# check sample names of TPM file of v11 and newly sequenced data
+oldSample<-colnames(oldStrandedTPM[,-1]) 
+newSample<-colnames(newStrandedTPM[,-1]) 
+tpmSampleCheck1<-setdiff(newSample , clinical_rna_stranded$Kids_First_Biospecimen_ID)
+tpmSampleCheck2<-setdiff( clinical_rna_stranded$Kids_First_Biospecimen_ID,newSample)
+
+# check sample names of count file of v11 and newly sequenced data
+oldSample<-colnames(oldStrandedCount[,-1])
+newSample<-colnames(newStrandedCount[,-1]) 
+countSampleCheck1<-setdiff(newSample , clinical_rna_stranded$Kids_First_Biospecimen_ID)
+countSampleCheck2<-setdiff( clinical_rna_stranded$Kids_First_Biospecimen_ID,newSample)
+
+# check sample names of Kallisto file of v11 and newly sequenced data
+oldSample<-colnames(oldKallistoStranded[,-c(1,2)]) 
+newSample<-colnames(newKallistoStranded[,-c(1,2)]) 
+kallistoSampleCheck1<-setdiff(newSample , clinical_rna_stranded$Kids_First_Biospecimen_ID)
+kallistoSampleCheck2<-setdiff( clinical_rna_stranded$Kids_First_Biospecimen_ID,newSample)
+
+
+if (all(is_empty(c(countSampleCheck1,tpmSampleCheck1,kallistoSampleCheck1,countSampleCheck2,tpmSampleCheck2,kallistoSampleCheck2)))){
+  print ("New samples in isoforms files completely overlap with RNAseq files in histology file")
+  SampleCountCheck<-TRUE
+} else{
+  stop ("Sample count inaccurate! Check Sample in new and old datasets")
+  SampleCountCheck<-FALSE
+}
+```
+
+
+```{r Check Colnames in isoform file  for stranded biospecimens should have transcript_id, gene_id and bs_ids  }
+
+# check col names of count file of v11 and newly sequenced data
+oldSample<-colnames(oldStrandedCount) 
+newSample<-colnames(newStrandedCount) 
+countColCheck1<-setdiff(newSample, c("transcript_id",clinical_rna_stranded$Kids_First_Biospecimen_ID))
+countColCheck2<-setdiff( c("transcript_id",clinical_rna_stranded$Kids_First_Biospecimen_ID),newSample)
+
+# check col names of TPM file of v11 and newly sequenced data
+oldSample<-colnames(oldStrandedTPM) 
+newSample<-colnames(newStrandedTPM) 
+tpmColCheck1<-setdiff(newSample , c("transcript_id",clinical_rna_stranded$Kids_First_Biospecimen_ID))
+tpmColCheck2<-setdiff( c("transcript_id",clinical_rna_stranded$Kids_First_Biospecimen_ID),newSample)
+
+# check col names of Kallisto file of v11 and newly sequenced data
+oldSample<-colnames(oldKallistoStranded) 
+newSample<-colnames(newKallistoStranded) 
+kallistoColCheck1<-setdiff(newSample , c("gene_id","transcript_id",clinical_rna_stranded$Kids_First_Biospecimen_ID))
+kallistoColCheck2<-setdiff( c("gene_id","transcript_id",clinical_rna_stranded$Kids_First_Biospecimen_ID),newSample)
+
+if (all(is_empty(c(countColCheck1,tpmColCheck1,countColCheck2,tpmColCheck2,kallistoColCheck1,kallistoColCheck2)))){
+  print ("Colnames correct in new file")
+  SampleCountCheck<-TRUE
+} else{
+  stop ("Colnames incorrect! Check colnames in new and old datasets")
+  SampleCountCheck<-FALSE
+}
+
+```
+
+```{r Check order of genes in old stranded and new stranded dataset }
+# only if number of gene_ids is true use == and all() to compare each element to the same position in the other vector
+
+# check gene order kallisto polya and new kallisto dataset
+if(length(newKallistoStranded$gene_id)== length(oldKallistoStranded$gene_id)){
+  geneOrderCheckKallisto<-all(newKallistoStranded$gene_id==oldKallistoStranded$gene_id)
+} else{
+  geneOrderCheckKallisto<-FALSE
+}
+
+# check gene order polya and new TPM dataset
+if(length(newStrandedTPM$gene_id)== length(oldStrandedTPM$gene_id)){
+  geneOrderCheckTPM<-all(newStrandedTPM$gene_id==oldStrandedTPM$gene_id)
+}else{
+  geneOrderCheckTPM<-FALSE
+}
+
+# check gene order polya and new count dataset
+if(length(newStrandedCount$gene_id)== length(oldStrandedCount$gene_id)){
+  geneOrderCheckCount<-all(newStrandedCount$gene_id==oldStrandedCount$gene_id)
+} else {
+  geneOrderCheckCount<-FALSE
+}
+
+if (all(c(geneOrderCheckCount,geneOrderCheckKallisto,geneOrderCheckTPM))){
+  print ("Same order of genes in both datasets ")
+  geneOrderCheck<-TRUE
+} else{
+  stop ("Different genes order found! Check genes in new and old datasets")
+  geneOrderCheck<-FALSE
+}
+```
+
+
+#### v18 polya data
+
+```{r Dimension of old polya dataset}
+#old TPM data
+dim(oldPolyaTPM)
+#old count data
+dim(oldPolyaCount)
+# old kallisto data
+dim(oldKallistoPolya)
+```
+
+#### New polya data
+
+Same as v17 
+
+```{r Dimension of new polya data }
+
+# new TPM data
+newPolyaTPM <- oldPolyaTPM 
+# new count data
+newPolyaCount <- oldPolyaCount 
+# new Kallisto data
+newKallistoPolya <- oldKallistoPolya 
+
+#new TPM data
+dim(newPolyaTPM)
+#new count data
+dim(newPolyaCount)
+#new kallisto data
+dim(newKallistoPolya)
+```
+
+```{r Check common/missing genes for polya biospecimens}
+
+# check with gene names in TPM file of v11 and newly sequenced data
+tpmGeneCheck1<-setdiff(oldPolyaTPM$gene_id,newPolyaTPM$gene_id)
+tpmGeneCheck2<-setdiff(newPolyaTPM$gene_id,oldPolyaTPM$gene_id)
+
+# check with gene names in count file of v11 and newly sequenced data
+countGeneCheck1<-setdiff(oldPolyaCount$gene_id,newPolyaCount$gene_id)
+countGeneCheck2<-setdiff(newPolyaCount$gene_id,oldPolyaCount$gene_id)
+
+# check with gene names in Kallisto file of v11 and newly sequenced data
+kallistoGeneCheck1<-setdiff(oldKallistoPolya$gene_id,newKallistoPolya$gene_id)
+kallistoGeneCheck2<-setdiff(newKallistoPolya$gene_id,oldKallistoPolya$gene_id)
+
+if (all(is_empty(c(countGeneCheck1,tpmGeneCheck1,kallistoGeneCheck1,countGeneCheck2,tpmGeneCheck2,kallistoGeneCheck2)))){
+  print ("Common genes in both datasets ")
+  geneCountCheck<-TRUE
+} else{
+  stop ("Different genes found! Check genes in new and old datasets")
+  geneCountCheck<-FALSE
+}
+```
+
+
+```{r Check Sample count between old+new dataset for polya biospecimens and clinical file }
+clinical_rna_Polya<-clinical_rna %>% filter(RNA_library=="poly-A") 
+#total RNAseq samples in histology
+nrow(clinical_rna_Polya)
+
+# check sample names of TPM file of v11 and newly sequenced data
+oldSample<-colnames(oldPolyaTPM[,-1]) 
+newSample<-colnames(newPolyaTPM[,-1]) 
+tpmSampleCheck1<-setdiff(newSample , clinical_rna_Polya$Kids_First_Biospecimen_ID)
+tpmSampleCheck2<-setdiff( clinical_rna_Polya$Kids_First_Biospecimen_ID,newSample)
+
+# check sample names of count file of v11 and newly sequenced data
+oldSample<-colnames(oldPolyaCount[,-1])
+newSample<-colnames(newPolyaCount[,-1]) 
+countSampleCheck1<-setdiff(newSample , clinical_rna_Polya$Kids_First_Biospecimen_ID)
+countSampleCheck2<-setdiff( clinical_rna_Polya$Kids_First_Biospecimen_ID,newSample)
+
+# check sample names of Kallisto file of v11 and newly sequenced data
+oldSample<-colnames(oldKallistoPolya[,-c(1,2)]) 
+newSample<-colnames(newKallistoPolya[,-c(1,2)]) 
+kallistoSampleCheck1<-setdiff(newSample , clinical_rna_Polya$Kids_First_Biospecimen_ID)
+kallistoSampleCheck2<-setdiff( clinical_rna_Polya$Kids_First_Biospecimen_ID,newSample)
+
+
+if (all(is_empty(c(countSampleCheck1,tpmSampleCheck1,kallistoSampleCheck1,countSampleCheck2,tpmSampleCheck2,kallistoSampleCheck2)))){
+  print ("New samples in isoforms files completely overlap with RNAseq files in histology file")
+  SampleCountCheck<-TRUE
+} else{
+  stop ("Sample count inaccurate! Check Sample in new and old datasets")
+  SampleCountCheck<-FALSE
+}
+```
+
+
+```{r Check Colnames in isoform file for polya biospecimens should have transcript_id, gene_id and bs_ids  }
+
+# check col names of count file of v11 and newly sequenced data
+oldSample<-colnames(oldPolyaCount) 
+newSample<-colnames(newPolyaCount) 
+countColCheck1<-setdiff(newSample, c("transcript_id",clinical_rna_Polya$Kids_First_Biospecimen_ID))
+countColCheck2<-setdiff( c("transcript_id",clinical_rna_Polya$Kids_First_Biospecimen_ID),newSample)
+
+# check col names of TPM file of v11 and newly sequenced data
+oldSample<-colnames(oldPolyaTPM) 
+newSample<-colnames(newPolyaTPM) 
+tpmColCheck1<-setdiff(newSample , c("transcript_id",clinical_rna_Polya$Kids_First_Biospecimen_ID))
+tpmColCheck2<-setdiff( c("transcript_id",clinical_rna_Polya$Kids_First_Biospecimen_ID),newSample)
+
+# check col names of Kallisto file of v11 and newly sequenced data
+oldSample<-colnames(oldKallistoPolya) 
+newSample<-colnames(newKallistoPolya) 
+kallistoColCheck1<-setdiff(newSample , c("gene_id","transcript_id",clinical_rna_Polya$Kids_First_Biospecimen_ID))
+kallistoColCheck2<-setdiff( c("gene_id","transcript_id",clinical_rna_Polya$Kids_First_Biospecimen_ID),newSample)
+
+if (all(is_empty(c(countColCheck1,tpmColCheck1,countColCheck2,tpmColCheck2,kallistoColCheck1,kallistoColCheck2)))){
+  print ("Colnames correct in new file")
+  SampleCountCheck<-TRUE
+} else{
+  stop ("Colnames incorrect! Check colnames in new and old datasets")
+  SampleCountCheck<-FALSE
+}
+
+```
+
+
+```{r Check order of genes in old polya and new Polya dataset }
+# only if number of gene_ids is true use == and all() to compare each element to the same position in the other vector
+
+# check gene order kallisto polya and new kallisto dataset
+if(length(newKallistoPolya$gene_id)== length(oldKallistoPolya$gene_id)){
+  geneOrderCheckKallisto<-all(newKallistoPolya$gene_id==oldKallistoPolya$gene_id)
+} else{
+  geneOrderCheckKallisto<-FALSE
+}
+
+# check gene order polya and new TPM dataset
+if(length(newPolyaTPM$gene_id)== length(oldPolyaTPM$gene_id)){
+  geneOrderCheckTPM<-all(newPolyaTPM$gene_id==oldPolyaTPM$gene_id)
+}else{
+  geneOrderCheckTPM<-FALSE
+}
+
+# check gene order polya and new count dataset
+if(length(newPolyaCount$gene_id)== length(oldPolyaCount$gene_id)){
+  geneOrderCheckCount<-all(newPolyaCount$gene_id==oldPolyaCount$gene_id)
+} else {
+  geneOrderCheckCount<-FALSE
+}
+
+if (all(c(geneOrderCheckCount,geneOrderCheckKallisto,geneOrderCheckTPM))){
+  print ("Same order of genes in both datasets ")
+  geneOrderCheck<-TRUE
+} else{
+  stop ("Different genes order found! Check genes in new and old datasets")
+  geneOrderCheck<-FALSE
+}
+```
+
+
+
+```{r  Check all Checks and save RDS}
+if(all(geneCountCheck,geneOrderCheck,SampleCountCheck)){
+  print("Checks PASSED; coping files to release folder")
+  saveRDS(newPolyaCount,file.path(outputFolder,params$polyaCount))
+  saveRDS(newPolyaTPM,file.path(outputFolder,params$polyaTPM))
+  saveRDS(newKallistoPolya,file.path(outputFolder,params$polyaKallisto))
+  
+  saveRDS(newStrandedCount,file.path(outputFolder,params$strandedCount))
+  saveRDS(newStrandedTPM,file.path(outputFolder,params$strandedTPM))
+  saveRDS(newKallistoStranded,file.path(outputFolder,params$strandedKallisto))
+
+} else{
+  stop("Checks FAILED. Please REVIEW")
+}
+```
+

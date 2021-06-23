@@ -30,7 +30,3 @@ sample_id	Anatomic Location Review (CK)	CNS_Region
 7316-466	Midline - thalamus	Midline
 7316-895	"Multifocal - extra-axial, largest CPA"	Mixed
 7316-895	"Multifocal - extra-axial, largest CPA"	Mixed
-7316-2152	Neg spine	Midline
-7316-2152	Midline - B/l thalamus	Midline
-7316-2152	Metastatic disease to spine	Midline
-7316-2152	Midline - B/l thalamus	Midline

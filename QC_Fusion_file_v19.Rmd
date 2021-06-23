@@ -1,0 +1,142 @@
+---
+title: "v18 QC Fusion files"
+output: html_notebook
+params:
+  histology:
+    label: "Clinical file" 
+    value: release-v19-20210112/pbta-histologies-base.tsv
+    input: file
+  oldDataFolder:
+    label: "Old release folder soft linked to this directory"
+    value: release-v18-20201123
+    input: file
+  newDataFolder:
+    label: "Input new rsem files"
+    value: output
+    input: file
+  outputFolder:
+    label: "Output release folder"
+    value: release-v19-20210112
+    input: string  
+---
+
+
+This markdown helps with QC for merging new RNAseq rsem.gene files.
+
+     Note v19 has the following changes:
+     
+     Stranded:
+       BS_JXF8A2A6 , the reason behind the removal is in  [issue](https://github.com/AlexsLemonade/OpenPBTA-analysis/issues/862)
+
+     
+##### Checks
+
+1. PRINTS: dimentions of new and old datasets
+2. CHECKS: sample overlap between new and histology file
+3. If all above checks pass then final "Checks PASSED/Checks FAILED" is printed
+
+
+```{r Read input}
+if(!require("readr")){
+    install.packages("readr")
+}
+if(!require("tidyverse")){
+    install.packages("tidyverse")
+}
+if(!require("reshape2")){
+    install.packages("reshape2")
+}
+if(!require("qdapRegex")){
+    install.packages("qdapRegex")
+}
+root_dir <- rprojroot::find_root(rprojroot::has_dir(".git"))
+#load required packages
+suppressPackageStartupMessages(library("readr"))
+suppressPackageStartupMessages(library("tidyverse"))
+suppressPackageStartupMessages(library("reshape2"))
+suppressPackageStartupMessages(library("qdapRegex"))
+
+```
+
+### Input
+
+```{r}
+# read released fusion file
+oldpbtaStarfusion<-read_tsv(file.path(params$oldDataFolder,"pbta-fusion-starfusion.tsv.gz"))
+oldpbtaArriba<-read_tsv(file.path( params$oldDataFolder,"pbta-fusion-arriba.tsv.gz"))
+
+# read newly created fusion file
+newpbtaStarfusion<- oldpbtaStarfusion %>%
+  filter(tumor_id != "BS_JXF8A2A6")
+
+newpbtaArriba<- oldpbtaArriba %>%
+  filter(tumor_id != "BS_JXF8A2A6")
+
+# read histology file
+# histology file
+clinical<-read.delim(file.path(params$histology), stringsAsFactors = FALSE)
+clinical_rna<-clinical %>% dplyr::filter(experimental_strategy=="RNA-Seq") 
+
+# results folder
+outputFolder<-params$outputFolder
+
+```
+
+#### v18 fuson files
+
+```{r Dimension of old data }
+#old starfusion
+dim(oldpbtaStarfusion)
+#old arriba
+dim(oldpbtaArriba)
+
+
+```
+
+#### New fusion files
+
+```{r Dimension of new data }
+#old starfusion
+dim(newpbtaStarfusion)
+#old arriba
+dim(newpbtaArriba)
+
+
+```
+
+
+```{r Check overlap of samples from histology file }
+# check samples in starfusion file
+fusedSampleCheck1<-setdiff(newpbtaStarfusion$tumor_id,clinical$Kids_First_Biospecimen_ID)
+
+# check samples in arriba fusion file
+fusedSampleCheck2<-setdiff(newpbtaArriba$tumor_id,clinical$Kids_First_Biospecimen_ID)
+
+if (all(is_empty(c(fusedSampleCheck1,fusedSampleCheck2)))){
+  print ("Samples in fusion calls overlap histology file ")
+  sampleCountCheck<-TRUE
+} else{
+  stop ("Different sample ids found! Check samples in new files")
+  sampleCountCheck<-FALSE
+}
+
+```
+
+
+```{r  Check all Checks and save RDS}
+if(all(sampleCountCheck)){
+  print("Checks PASSED, coping file to release folder")
+  write_tsv(newpbtaStarfusion,file.path(outputFolder,"pbta-fusion-starfusion.tsv.gz"))
+  write_tsv(newpbtaArriba,file.path(outputFolder,"pbta-fusion-arriba.tsv.gz"))
+  
+} else{
+  stop("Checks FAILED. Please REVIEW")
+}
+```
+
+
+
+
+
+
+
